@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widget/navbar.dart';
 import 'ejercicios.dart';
 
 class InicioScreen extends StatefulWidget {
@@ -35,7 +36,7 @@ class _InicioScreenState extends State<InicioScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Bienvenidos")),
+      appBar: AppBar(title: const Text("Gymkoda")),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
@@ -64,6 +65,7 @@ class _InicioScreenState extends State<InicioScreen> {
                 );
               },
             ),
+      bottomNavigationBar: const GymNavbar(currentIndex: 1), // 👈 Aquí va
     );
   }
 }

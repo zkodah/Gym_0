@@ -3,52 +3,69 @@ import '../screen/inicio.dart';
 import '../screen/detalles.dart';
 import '../screen/perfil.dart';
 
-class GymNavbar extends StatelessWidget {
+class GymNavbar extends StatefulWidget {
   final int currentIndex;
 
   const GymNavbar({super.key, required this.currentIndex});
 
-  void _onItemTapped(BuildContext context, int index) {
-    if (index == currentIndex) return; // Evita recargar la misma pantalla
+  @override
+  State<GymNavbar> createState() => _GymNavbarState();
+}
 
-    Widget nextScreen;
-    switch (index) {
-      case 0:
-        nextScreen = const DetallesScreen();
-        break;
-      case 1:
-        nextScreen = const InicioScreen();
-        break;
-      case 2:
-        nextScreen = const PerfilScreen();
-        break;
-      default:
-        nextScreen = const InicioScreen();
-    }
+class _GymNavbarState extends State<GymNavbar> {
+  int currentPageIndex = 0;
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => nextScreen),
-    );
+  @override
+  void initState() {
+    super.initState();
+    currentPageIndex = widget.currentIndex;
   }
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: currentIndex,
-      onTap: (index) => _onItemTapped(context, index),
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.fitness_center),
-          label: "Ejercicios",
+    return NavigationBar(
+      onDestinationSelected: (int index) {
+        setState(() {
+          currentPageIndex = index;
+        });
+
+        Widget nextScreen;
+        switch (index) {
+          case 0:
+            nextScreen = const DetallesScreen();
+            break;
+          case 1:
+            nextScreen = const InicioScreen();
+            break;
+          case 2:
+            nextScreen = const PerfilScreen();
+            break;
+          default:
+            nextScreen = const InicioScreen();
+        }
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => nextScreen),
+        );
+      },
+      indicatorColor: Colors.amber,
+      selectedIndex: currentPageIndex,
+      destinations: const <Widget>[
+        NavigationDestination(
+          selectedIcon: Icon(Icons.fitness_center),
+          icon: Icon(Icons.fitness_center_outlined),
+          label: 'Ejercicios',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: "Inicio",
+        NavigationDestination(
+          selectedIcon: Icon(Icons.home),
+          icon: Icon(Icons.home_outlined),
+          label: 'Inicio',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: "Perfil",
+        NavigationDestination(
+          selectedIcon: Icon(Icons.person_2_outlined),
+          icon: Icon(Icons.person_2_outlined),
+          label: 'Perfil',
         ),
       ],
     );

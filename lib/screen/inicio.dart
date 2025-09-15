@@ -3,6 +3,8 @@ import 'package:percent_indicator/percent_indicator.dart';
 import '../services/api_service.dart';
 import '../widget/navbar.dart';
 import 'ejercicios.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 
 class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key});
@@ -49,6 +51,14 @@ class _InicioScreenState extends State<InicioScreen> {
         title: const Text("Gymkoda"),
         backgroundColor: Colors.blueGrey,
         elevation: 4,
+        actions: [
+          IconButton(
+            icon : const Icon(Icons.logout),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+            },
+          )
+        ],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())

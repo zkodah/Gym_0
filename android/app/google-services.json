@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "240742849209",
+    "project_id": "gymkoda",
+    "storage_bucket": "gymkoda.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:240742849209:android:275758c042e4decae39968",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJeoaG7RVFRpsvwiq5ajwLHm-dN__jg3s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

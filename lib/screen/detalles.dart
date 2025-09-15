@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/widget/navbar.dart';
-import 'package:percent_indicator/percent_indicator.dart';
 
 class DetallesScreen extends StatelessWidget {
   const DetallesScreen({super.key});

@@ -41,10 +41,9 @@ dependencies:
   percent_indicator: ^4.2.3
   fl_chart: ^1.1.0
   logger: ^2.0.2+1
-  firebase_core: ^2.25.0
-  firebase_auth: ^4.15.0
-  google_sign_in: ^5.4.0
-
+  firebase_core: ^2.30.0
+  firebase_auth: ^4.20.0
+  google_sign_in: ^6.2.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

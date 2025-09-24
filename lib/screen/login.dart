@@ -1,98 +1,127 @@
 import 'package:flutter/material.dart';
-import 'package:logger/logger.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'inicio.dart';
 
 class LoginScreen extends StatelessWidget {
-  static final Logger _logger = Logger();
-
   const LoginScreen({super.key});
 
-  Future<UserCredential?> signInWithGoogle() async {
+  Future<UserCredential?> _signInWithGoogle() async {
     try {
-      // Paso 1: iniciar flujo de autenticación
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return null;
 
-      if (googleUser == null) return null; // canceló login
-
-      // Paso 2: obtener detalles de autenticación
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // Paso 3: crear credencial
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Paso 4: iniciar sesión en Firebase
       return await FirebaseAuth.instance.signInWithCredential(credential);
     } catch (e) {
-      _logger.e("Error en Google Sign-In: $e");
+      debugPrint("Error en Google Sign-In: $e");
       return null;
     }
+  }
+
+  Future<void> _showQuestionnaire(BuildContext context) async {
+    final TextEditingController edadCtrl = TextEditingController();
+    final TextEditingController alturaCtrl = TextEditingController();
+    final TextEditingController pesoCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Completa tu perfil"),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: edadCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Edad"),
+                ),
+                TextField(
+                  controller: alturaCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Altura (m)"),
+                ),
+                TextField(
+                  controller: pesoCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Peso (kg)"),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () async {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  final data = {
+                    "edad": int.tryParse(edadCtrl.text) ?? 0,
+                    "altura": double.tryParse(alturaCtrl.text) ?? 0.0,
+                    "peso": double.tryParse(pesoCtrl.text) ?? 0.0,
+                  };
+
+                  await FirebaseFirestore.instance
+                      .collection("usuarios")
+                      .doc(user.uid)
+                      .set(data);
+
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text("Guardar"),
+            )
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _handleLogin(BuildContext context, User user) async {
+    final doc = await FirebaseFirestore.instance
+        .collection("usuarios")
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) {
+      await _showQuestionnaire(context);
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const InicioScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Gymkoda")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 50.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Inicio de sesión',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 40),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () async {
+            // Forzar logout antes de iniciar sesión
+            await GoogleSignIn().signOut();
+            await FirebaseAuth.instance.signOut();
 
-            Center(
-              child: Icon(
-                Icons.fitness_center,
-                size: 100,
-                color: Colors.blueAccent,
-              ),
-            ),
-            const SizedBox(height: 40),
-
-            ElevatedButton.icon(
-              onPressed: () async {
-                final result = await signInWithGoogle();
-                if (result != null) {
-                  _logger.i("Login exitoso: ${result.user?.displayName}");
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const InicioScreen()),
-                  );
-                } else {
-                  _logger.e("Error al iniciar sesión");
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Error al iniciar sesión")),
-                  );
-                }
-              },
-              icon: const Icon(Icons.g_mobiledata, color: Colors.white),
-              label: const Text("Iniciar con Google"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+            final result = await _signInWithGoogle();
+            if (result != null) {
+              await _handleLogin(context, result.user!);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Error al iniciar sesión")),
+              );
+            }
+          },
+          child: const Text("Iniciar sesión con Google"),
         ),
       ),
     );

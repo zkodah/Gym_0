@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 import '../widget/navbar.dart';
 import 'ejercicios.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key});
@@ -20,6 +20,7 @@ class _InicioScreenState extends State<InicioScreen> {
   @override
   void initState() {
     super.initState();
+    verificarPerfilUsuario();
     cargarEjercicios();
   }
 
@@ -34,6 +35,79 @@ class _InicioScreenState extends State<InicioScreen> {
       setState(() => loading = false);
       print("Error: $e");
     }
+  }
+
+  void verificarPerfilUsuario() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection("usuarios")
+          .doc(user.uid)
+          .get();
+
+      if (!doc.exists) {
+        await _showQuestionnaire(context);
+      }
+    }
+  }
+
+  Future<void> _showQuestionnaire(BuildContext context) async {
+    final TextEditingController edadCtrl = TextEditingController();
+    final TextEditingController alturaCtrl = TextEditingController();
+    final TextEditingController pesoCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Completa tu perfil"),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: edadCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Edad"),
+                ),
+                TextField(
+                  controller: alturaCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Altura (m)"),
+                ),
+                TextField(
+                  controller: pesoCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Peso (kg)"),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () async {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  final data = {
+                    "edad": int.tryParse(edadCtrl.text) ?? 0,
+                    "altura": double.tryParse(alturaCtrl.text) ?? 0.0,
+                    "peso": double.tryParse(pesoCtrl.text) ?? 0.0,
+                  };
+
+                  await FirebaseFirestore.instance
+                      .collection("usuarios")
+                      .doc(user.uid)
+                      .set(data);
+
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text("Guardar"),
+            )
+          ],
+        );
+      },
+    );
   }
 
   @override

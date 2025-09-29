@@ -5,6 +5,7 @@ import '../widget/navbar.dart';
 import 'ejercicios.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'login.dart';
 
 class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key});
@@ -37,76 +38,154 @@ class _InicioScreenState extends State<InicioScreen> {
     }
   }
 
-  void verificarPerfilUsuario() async {
+  Future<void> verificarPerfilUsuario() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final doc = await FirebaseFirestore.instance
-          .collection("usuarios")
-          .doc(user.uid)
-          .get();
+    if (user == null) return;
 
-      if (!doc.exists) {
-        await _showQuestionnaire(context);
-      }
+    final doc = await FirebaseFirestore.instance
+        .collection("usuarios")
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) {
+      await _showQuestionnaire(context);
+      return;
+    }
+
+    final data = doc.data();
+    if (data == null ||
+        data["alias"] == null || data["alias"].isEmpty ||
+        data["edad"] == null || data["edad"] <= 0 ||
+        data["altura"] == null || data["altura"] <= 0 ||
+        data["peso"] == null || data["peso"] <= 0 ||
+        data["objetivo"] == null || data["objetivo"].isEmpty) {
+      await _showQuestionnaire(context);
     }
   }
 
   Future<void> _showQuestionnaire(BuildContext context) async {
+    final TextEditingController aliasCtrl = TextEditingController();
     final TextEditingController edadCtrl = TextEditingController();
     final TextEditingController alturaCtrl = TextEditingController();
     final TextEditingController pesoCtrl = TextEditingController();
+
+    String objetivo = ""; // aquí guardamos la selección
 
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Completa tu perfil"),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: edadCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Edad"),
+        return StatefulBuilder( // necesario para que se refresque la selección
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text("Completa tu perfil"),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: aliasCtrl,
+                      keyboardType: TextInputType.text,
+                      decoration: const InputDecoration(labelText: "Alias"),
+                    ),
+                    TextField(
+                      controller: edadCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: "Edad"),
+                    ),
+                    TextField(
+                      controller: alturaCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: "Altura (m)"),
+                    ),
+                    TextField(
+                      controller: pesoCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: "Peso (kg)"),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text("Selecciona tu objetivo:"),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 5,
+                      children: [
+                        _buildOptionCard("Bienestar/Salud", Icons.favorite, objetivo, (val) {
+                          setState(() => objetivo = val);
+                        }),
+                        _buildOptionCard("Resistencia/Cardio", Icons.monitor_heart, objetivo, (val) {
+                          setState(() => objetivo = val);
+                        }),
+                        _buildOptionCard("Hipertrofia", Icons.fitness_center_rounded, objetivo, (val) {
+                          setState(() => objetivo = val);
+                        }),
+                      ],
+                    ),
+                  ],
                 ),
-                TextField(
-                  controller: alturaCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Altura (m)"),
-                ),
-                TextField(
-                  controller: pesoCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Peso (kg)"),
-                ),
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () async {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user != null) {
+                      final data = {
+                        "alias": aliasCtrl.text,
+                        "edad": int.tryParse(edadCtrl.text) ?? 0,
+                        "altura": double.tryParse(alturaCtrl.text) ?? 0.0,
+                        "peso": double.tryParse(pesoCtrl.text) ?? 0.0,
+                        "objetivo": objetivo, // guardamos el objetivo
+                      };
+
+                      await FirebaseFirestore.instance
+                          .collection("usuarios")
+                          .doc(user.uid)
+                          .set(data);
+
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text("Guardar"),
+                )
               ],
-            ),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () async {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  final data = {
-                    "edad": int.tryParse(edadCtrl.text) ?? 0,
-                    "altura": double.tryParse(alturaCtrl.text) ?? 0.0,
-                    "peso": double.tryParse(pesoCtrl.text) ?? 0.0,
-                  };
-
-                  await FirebaseFirestore.instance
-                      .collection("usuarios")
-                      .doc(user.uid)
-                      .set(data);
-
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text("Guardar"),
-            )
-          ],
+            );
+          },
         );
       },
+    );
+  }
+
+  /// Widget para crear tarjetas seleccionables
+  Widget _buildOptionCard(String text, IconData icon, String selected, Function(String) onSelect) {
+    final bool isSelected = selected == text;
+    return GestureDetector(
+      onTap: () => onSelect(text),
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blueAccent : Colors.grey[200],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.grey,
+            width: 2,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 40, color: isSelected ? Colors.white : Colors.black),
+            const SizedBox(height: 5),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -127,9 +206,13 @@ class _InicioScreenState extends State<InicioScreen> {
         elevation: 4,
         actions: [
           IconButton(
-            icon : const Icon(Icons.logout),
+            icon: const Icon(Icons.logout),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
             },
           )
         ],

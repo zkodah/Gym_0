@@ -4,12 +4,12 @@ import 'package:http/http.dart' as http;
 class ApiService {
   static const String baseUrl = "http://192.168.100.42:8080";
 
-  static Future<List<dynamic>> getEjercicios() async {
-    final response = await http.get(Uri.parse("$baseUrl/ejercicios"));
+  static Future<Map<String, dynamic>> getRutinas() async {
+    final response = await http.get(Uri.parse("$baseUrl/rutinas"));
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
-      throw Exception("Error al cargar ejercicios");
+      throw Exception("Error al cargar rutinas");
     }
   }
 

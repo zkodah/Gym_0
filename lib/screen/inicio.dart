@@ -17,6 +17,54 @@ class InicioScreen extends StatefulWidget {
 class _InicioScreenState extends State<InicioScreen> {
   List<dynamic> ejercicios = [];
   bool loading = true;
+List<dynamic> _filtrarRutinas(
+  Map<String, dynamic> data,
+  String objetivo,
+  int edad,
+  double peso,
+  String nivel,
+) {
+  if (!data.containsKey(objetivo)) return [];
+
+  final objetivoData = data[objetivo];
+
+  // Buscar rango de edad
+  String? rangoEdad;
+  for (var key in objetivoData.keys) {
+    final partes = key.replaceAll("+", "-200").split("-");
+    final min = int.parse(partes[0]);
+    final max = int.parse(partes[1]);
+    if (edad >= min && edad <= max) {
+      rangoEdad = key;
+      break;
+    }
+  }
+  if (rangoEdad == null) return [];
+
+  final pesoData = objetivoData[rangoEdad];
+
+  // Buscar rango de peso
+  String? rangoPeso;
+  for (var key in pesoData.keys) {
+    final partes = key.replaceAll("+", "-999").split("-");
+    final min = int.parse(partes[0]);
+    final max = int.parse(partes[1]);
+    if (peso >= min && peso <= max) {
+      rangoPeso = key;
+      break;
+    }
+  }
+  if (rangoPeso == null) return [];
+
+  final periodos = pesoData[rangoPeso];
+
+  if (periodos.containsKey(nivel)) {
+    return periodos[nivel];
+  }
+
+  // fallback
+  return [];
+}
 
   @override
   void initState() {
@@ -24,21 +72,8 @@ class _InicioScreenState extends State<InicioScreen> {
     verificarPerfilUsuario();
     cargarEjercicios();
   }
-
-  void cargarEjercicios() async {
-    try {
-      var data = await ApiService.getEjercicios();
-      setState(() {
-        ejercicios = data;
-        loading = false;
-      });
-    } catch (e) {
-      setState(() => loading = false);
-      print("Error: $e");
-    }
-  }
-
-  Future<void> verificarPerfilUsuario() async {
+void cargarEjercicios() async {
+  try {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -47,22 +82,102 @@ class _InicioScreenState extends State<InicioScreen> {
         .doc(user.uid)
         .get();
 
-    if (!doc.exists) {
-      await _showQuestionnaire(context);
-      return;
-    }
+    if (!doc.exists) return;
 
-    final data = doc.data();
-    if (data == null ||
-        data["alias"] == null || data["alias"].isEmpty ||
-        data["edad"] == null || data["edad"] <= 0 ||
-        data["altura"] == null || data["altura"] <= 0 ||
-        data["peso"] == null || data["peso"] <= 0 ||
-        data["objetivo"] == null || data["objetivo"].isEmpty) {
-      await _showQuestionnaire(context);
+    final dataUsuario = doc.data()!;
+    print("Datos del usuario: $dataUsuario");
+
+    // 🔹 Determinar nivel según tiempo desde registro
+    final nivel = _determinarNivel(dataUsuario);
+
+    // 🔹 Obtener rutinas desde API/local
+    final rutinasData = await ApiService.getRutinas();
+
+    final rutinas = _filtrarRutinas(
+      rutinasData,
+      dataUsuario["objetivo"],
+      dataUsuario["edad"],
+      dataUsuario["peso"].toDouble(),
+      nivel,
+    );
+
+    setState(() {
+      ejercicios = rutinas;
+      loading = false;
+    });
+
+    // 🔹 Si el nivel cambió, actualiza en Firestore
+    if (dataUsuario["nivel"] != nivel) {
+      await FirebaseFirestore.instance
+          .collection("usuarios")
+          .doc(user.uid)
+          .update({"nivel": nivel});
+      print("Nivel actualizado automáticamente a $nivel");
     }
+  } catch (e) {
+    setState(() => loading = false);
+    print("Error al cargar rutinas: $e");
   }
+}
 
+/// 🔹 Determina nivel según la fecha de registro
+String _determinarNivel(Map<String, dynamic> data) {
+  try {
+    if (data["fechaRegistro"] == null) return "base";
+    final fecha = DateTime.parse(data["fechaRegistro"]);
+    final meses = DateTime.now().difference(fecha).inDays ~/ 30;
+
+    if (meses < 4) return "base";
+    if (meses < 7) return "intermedio";
+    return "avanzado";
+  } catch (e) {
+    print("Error calculando nivel: $e");
+    return "base";
+  }
+}
+
+Future<void> verificarPerfilUsuario() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final docRef = FirebaseFirestore.instance.collection("usuarios").doc(user.uid);
+    final snap = await docRef.get();
+    Map<String, dynamic> data = {};
+
+    if (snap.exists) {
+      data = snap.data() as Map<String, dynamic>;
+    }
+
+    // Asegurar fechaRegistro para cálculo de nivel
+    if (data["fechaRegistro"] == null) {
+      await docRef.set(
+        {"fechaRegistro": DateTime.now().toIso8601String()},
+        SetOptions(merge: true),
+      );
+    }
+
+    final bool incompleto =
+        !snap.exists ||
+        data["alias"] == null ||
+        data["edad"] == null ||
+        data["altura"] == null ||
+        data["peso"] == null ||
+        data["objetivo"] == null ||
+        (data["objetivo"].toString().isEmpty);
+
+    if (incompleto) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showQuestionnaire(context);
+      });
+    }
+  } catch (e) {
+    print("Error verificando perfil: $e");
+  }
+}
+
+  
+  
   Future<void> _showQuestionnaire(BuildContext context) async {
     final TextEditingController aliasCtrl = TextEditingController();
     final TextEditingController edadCtrl = TextEditingController();
@@ -109,10 +224,10 @@ class _InicioScreenState extends State<InicioScreen> {
                       spacing: 5,
                       runSpacing: 5,
                       children: [
-                        _buildOptionCard("Bienestar/Salud", Icons.favorite, objetivo, (val) {
+                        _buildOptionCard("Fuerza", Icons.fitness_center, objetivo, (val) {
                           setState(() => objetivo = val);
                         }),
-                        _buildOptionCard("Resistencia/Cardio", Icons.monitor_heart, objetivo, (val) {
+                        _buildOptionCard("Resistencia", Icons.monitor_heart, objetivo, (val) {
                           setState(() => objetivo = val);
                         }),
                         _buildOptionCard("Hipertrofia", Icons.fitness_center_rounded, objetivo, (val) {
@@ -133,13 +248,19 @@ class _InicioScreenState extends State<InicioScreen> {
                         "edad": int.tryParse(edadCtrl.text) ?? 0,
                         "altura": double.tryParse(alturaCtrl.text) ?? 0.0,
                         "peso": double.tryParse(pesoCtrl.text) ?? 0.0,
-                        "objetivo": objetivo, // guardamos el objetivo
+                        "objetivo": objetivo == "Bienestar/Salud"
+                            ? "Salud"
+                            : objetivo == "Fuerza"
+                                ? "Resistencia"
+                                : "Hipertrofia",
                       };
+
+                      print("Datos a guardar en Firestore: $data"); // Depuración
 
                       await FirebaseFirestore.instance
                           .collection("usuarios")
                           .doc(user.uid)
-                          .set(data);
+                          .set(data, SetOptions(merge: true)); // Sobrescribir datos existentes
 
                       Navigator.pop(context);
                     }

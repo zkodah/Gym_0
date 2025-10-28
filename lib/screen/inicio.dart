@@ -17,7 +17,22 @@ class InicioScreen extends StatefulWidget {
 class _InicioScreenState extends State<InicioScreen> {
   List<dynamic> ejercicios = [];
   bool loading = true;
-List<dynamic> _filtrarRutinas(
+
+  // Guarda el progreso de un día en Firestore (merge sobre el mapa "progreso")
+  Future<void> _guardarProgresoDia(String dia, double progreso) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection("usuarios")
+          .doc(user.uid)
+          .set({"progreso": {dia: progreso}}, SetOptions(merge: true));
+    } catch (e) {
+      print("Error guardando progreso de $dia: $e");
+    }
+  }
+
+  List<dynamic> _filtrarRutinas(
   Map<String, dynamic> data,
   String objetivo,
   int edad,
@@ -82,31 +97,51 @@ void cargarEjercicios() async {
         .doc(user.uid)
         .get();
 
-    if (!doc.exists) return;
+    if (!doc.exists) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      return;
+    }
 
     final dataUsuario = doc.data()!;
     print("Datos del usuario: $dataUsuario");
 
-    // 🔹 Determinar nivel según tiempo desde registro
+    // Determinar nivel según tiempo desde registro
     final nivel = _determinarNivel(dataUsuario);
 
-    // 🔹 Obtener rutinas desde API/local
+    // Obtener rutinas desde API/local
     final rutinasData = await ApiService.getRutinas();
 
     final rutinas = _filtrarRutinas(
       rutinasData,
-      dataUsuario["objetivo"],
-      dataUsuario["edad"],
-      dataUsuario["peso"].toDouble(),
+      (dataUsuario["objetivo"] ?? "").toString(),
+      (dataUsuario["edad"] ?? 0) as int,
+      (dataUsuario["peso"] is num)
+          ? (dataUsuario["peso"] as num).toDouble()
+          : double.tryParse("${dataUsuario["peso"]}") ?? 0.0,
       nivel,
     );
 
+    // Cargar progreso guardado (mapa dia -> porcentaje 0..1)
+    final progresoMapRaw = dataUsuario["progreso"] ?? {};
+    final Map<String, dynamic> progresoMap =
+        (progresoMapRaw is Map<String, dynamic>) ? progresoMapRaw : {};
+
+    final enriquecidas = rutinas.map<Map<String, dynamic>>((r) {
+      final m = Map<String, dynamic>.from(r as Map);
+      final dia = (m["dia"] ?? "").toString();
+      final p = progresoMap[dia];
+      m["progreso"] = (p is num) ? p.toDouble() : 0.0;
+      return m;
+    }).toList();
+
+    if (!mounted) return;
     setState(() {
-      ejercicios = rutinas;
+      ejercicios = enriquecidas;
       loading = false;
     });
 
-    // 🔹 Si el nivel cambió, actualiza en Firestore
+    // Si el nivel cambió, actualiza en Firestore
     if (dataUsuario["nivel"] != nivel) {
       await FirebaseFirestore.instance
           .collection("usuarios")
@@ -115,6 +150,7 @@ void cargarEjercicios() async {
       print("Nivel actualizado automáticamente a $nivel");
     }
   } catch (e) {
+    if (!mounted) return;
     setState(() => loading = false);
     print("Error al cargar rutinas: $e");
   }
@@ -323,7 +359,18 @@ Future<void> verificarPerfilUsuario() async {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Gymkoda"),
-        backgroundColor: Colors.blueGrey,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFFFF6D00),
+                Color(0xFF9D4EDD),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         elevation: 4,
         actions: [
           IconButton(
@@ -338,111 +385,179 @@ Future<void> verificarPerfilUsuario() async {
           )
         ],
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Lista de días
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: ejercicios.length,
-                    itemBuilder: (context, index) {
-                      final e = ejercicios[index];
-                      final progreso =
-                          (e["progreso"] ?? 0).toDouble(); // 0.0 → 1.0
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color.fromRGBO(245, 247, 250, 1),
+              Color(0xFFE4ECF7),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: loading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: ejercicios.length,
+                      itemBuilder: (context, index) {
+                        final e = ejercicios[index];
+                        final progreso = (e["progreso"] ?? 0).toDouble();
 
-                      return Card(
-                        margin:
-                            const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 3,
-                        child: ListTile(
-                          title: Text(
-                            e['dia'],
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          trailing: CircularPercentIndicator(
-                            radius: 25.0,
-                            lineWidth: 6.0,
-                            percent: progreso,
-                            center: Text(
-                              "${(progreso * 100).toInt()}%",
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                          elevation: 5,
+                          color: Colors.transparent,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFFFFFFFF).withOpacity(0.95),
+                                  const Color(0xFFF3F6FF).withOpacity(0.95),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            progressColor:
-                                progreso == 1.0 ? Colors.green : Colors.orange,
-                            backgroundColor: Colors.grey[300]!,
-                          ),
-                          onTap: () async {
-                            final progreso = await Navigator.push (
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RutinaScreen(rutina: e),
+                            child: ListTile(
+                              title: Text(
+                                e['dia'],
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
                               ),
-                            );
-                            if (progreso != null) {
-                              setState(() {
-                                ejercicios[index]['progreso'] = progreso;
-                              });
-                            }
-                          }
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // Promedio total con círculo estilizado
-                Container(
-                  height: 200,
-                  margin: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.3),
-                        spreadRadius: 3,
-                        blurRadius: 5,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: CircularPercentIndicator(
-                      radius: 80.0,
-                      lineWidth: 15.0,
-                      percent: promedio,
-                      center: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "${(promedio * 100).toInt()}%",
-                            style: const TextStyle(
-                                fontSize: 24, fontWeight: FontWeight.bold),
+                              subtitle: Text(
+                                e['titulo'] ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: CircularPercentIndicator(
+                                radius: 26.0,
+                                lineWidth: 6.0,
+                                percent: progreso.clamp(0.0, 1.0),
+                                center: Text(
+                                  "${(progreso * 100).toInt()}%",
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                // Gradiente en progreso
+                                linearGradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFFFFA726), // orange
+                                    Color(0xFFEF5350), // red
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                backgroundColor:
+                                    const Color(0xFFE0E0E0), // gris claro
+                                circularStrokeCap: CircularStrokeCap.round,
+                              ),
+                              onTap: () async {
+                                final nuevoProgreso = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RutinaScreen(rutina: e),
+                                  ),
+                                );
+                                if (nuevoProgreso != null) {
+                                  final dia = (e['dia'] ?? '').toString();
+                                  if (!mounted) return;
+                                  setState(() {
+                                    ejercicios[index]['progreso'] =
+                                        (nuevoProgreso as num).toDouble();
+                                  });
+                                  await _guardarProgresoDia(
+                                      dia, (nuevoProgreso as num).toDouble());
+                                }
+                              },
+                            ),
                           ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            "Promedio Total",
-                            style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                      progressColor: Colors.blueAccent,
-                      backgroundColor: Colors.grey[200]!,
-                      circularStrokeCap: CircularStrokeCap.round,
+                        );
+                      },
                     ),
                   ),
-                ),
-              ],
-            ),
+                  // Promedio total con círculo estilizado
+                  Container(
+                    height: 200,
+                    margin: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFFFF9100),
+                          Color(0xFF9D4EDD),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0083B0).withOpacity(0.3),
+                          spreadRadius: 3,
+                          blurRadius: 10,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: CircularPercentIndicator(
+                        radius: 82.0,
+                        lineWidth: 16.0,
+                        percent: promedio.clamp(0.0, 1.0),
+                        center: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "${(promedio * 100).toInt()}%",
+                              style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              "Promedio Total",
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                        // Gradiente en progreso
+                        linearGradient: const LinearGradient(
+                          colors: [
+                            Color.fromARGB(255, 255, 255, 255),
+                            Color.fromARGB(255, 255, 255, 255),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),  
+                        backgroundColor: Colors.white.withOpacity(0.25),
+                        circularStrokeCap: CircularStrokeCap.round,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
       bottomNavigationBar: const GymNavbar(currentIndex: 1),
     );
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screen/inicio.dart';
-import '../screen/detalles.dart';
+import '../screen/youtube_busqueda.dart';
 import '../screen/perfil.dart';
 
 class GymNavbar extends StatefulWidget {
@@ -32,7 +32,7 @@ class _GymNavbarState extends State<GymNavbar> {
         Widget nextScreen;
         switch (index) {
           case 0:
-            nextScreen = const DetallesScreen();
+            nextScreen = const YoutubeSearchScreen();
             break;
           case 1:
             nextScreen = const InicioScreen();

@@ -32,4 +32,6 @@ class ApiService {
       throw Exception("Error al guardar usuario");
     }
   }
+
+  static Future buscarEjercicios(String query) async {}
 }

@@ -24,6 +24,7 @@ dependencies:
   cloud_firestore: ^4.17.5
   youtube_player_flutter: ^9.0.4
   flutter_dotenv: ^5.1.0
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:

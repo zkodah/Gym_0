@@ -1,0 +1,76 @@
+[
+  {
+    "dia": "Lunes",
+    "titulo": "Piernas + Cardio",
+    "rutina": [
+      "Calentamiento: 7-10 min caminadora (ritmo moderado)",
+      "Sentadillas (con tu peso): 3×12",
+      "Prensa de pierna: 3×10",
+      "Elevación de talones (gemelos): 3×15",
+      "Cardio: 10-15 min caminadora o bici",
+      "Estiramientos"
+    ]
+  },
+  {
+    "dia": "Martes",
+    "titulo": "Espalda + Core",
+    "rutina": [
+      "Calentamiento: 5 min elíptica",
+      "Remo en máquina: 3×10",
+      "Jalón al pecho: 3×12",
+      "Plancha: 3×20 seg",
+      "Crunch: 3×15",
+      "Estiramientos"
+    ]
+  },
+  {
+    "dia": "Miércoles",
+    "titulo": "Cardio + Movilidad",
+    "rutina": [
+      "Cardio: 20-25 min caminadora o bici a ritmo constante",
+      "Estiramientos de cuerpo completo (10 min)",
+      "Día más suave para soltar el cuerpo"
+    ]
+  },
+  {
+    "dia": "Jueves",
+    "titulo": "Pecho + Piernas",
+    "rutina": [
+      "Calentamiento: 7 min bicicleta",
+      "Press de pecho en máquina: 3×10",
+      "Aperturas: 3×12",
+      "Zancadas: 3×10 por pierna",
+      "Cardio: 10 min caminadora",
+      "Estiramientos"
+    ]
+  },
+  {
+    "dia": "Viernes",
+    "titulo": "Brazos + Core",
+    "rutina": [
+      "Calentamiento: 5 min elíptica",
+      "Curl de bíceps con mancuernas: 3×12",
+      "Tríceps en polea: 3×12",
+      "Plancha lateral: 3×15 seg por lado",
+      "Elevación de piernas tumbado: 3×12",
+      "Estiramientos"
+    ]
+  },
+  {
+    "dia": "Sábado",
+    "titulo": "Cardio intenso (HIIT suave)",
+    "rutina": [
+      "5 min calentamiento",
+      "1 min rápido caminadora o bici + 2 min lento (repetir 5 veces = 15 min)",
+      "Estiramientos"
+    ]
+  },
+  {
+    "dia": "Domingo",
+    "titulo": "Descanso activo",
+    "rutina": [
+      "Caminar al aire libre 20-30 min",
+      "Estiramientos en casa"
+    ]
+  }
+]

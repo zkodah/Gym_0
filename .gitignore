@@ -5,3 +5,4 @@ Backend/*.exe
 
 # ── Frontend Flutter ─────────────────────────────────────────────────────────
 Frontend/.env
+Frontend/android/app/google-services.json

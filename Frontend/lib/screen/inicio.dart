@@ -276,36 +276,30 @@ class _InicioScreenState extends State<InicioScreen>
                   ),
                 ),
                 const SizedBox(height: 10),
-                Row(
+                Column(
                   children: [
-                    Expanded(
-                      child: _ObjetivoChip(
-                        label: 'Fuerza',
-                        icon: Icons.fitness_center,
-                        selected: objetivo == 'Fuerza',
-                        onTap: () =>
-                            setDialogState(() => objetivo = 'Fuerza'),
-                      ),
+                    _ObjetivoChip(
+                      label: 'Fuerza',
+                      icon: Icons.fitness_center_rounded,
+                      selected: objetivo == 'Fuerza',
+                      onTap: () =>
+                          setDialogState(() => objetivo = 'Fuerza'),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _ObjetivoChip(
-                        label: 'Resistencia',
-                        icon: Icons.monitor_heart_outlined,
-                        selected: objetivo == 'Resistencia',
-                        onTap: () =>
-                            setDialogState(() => objetivo = 'Resistencia'),
-                      ),
+                    const SizedBox(height: 8),
+                    _ObjetivoChip(
+                      label: 'Resistencia',
+                      icon: Icons.directions_run_rounded,
+                      selected: objetivo == 'Resistencia',
+                      onTap: () =>
+                          setDialogState(() => objetivo = 'Resistencia'),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _ObjetivoChip(
-                        label: 'Hipertrofia',
-                        icon: Icons.trending_up_rounded,
-                        selected: objetivo == 'Hipertrofia',
-                        onTap: () =>
-                            setDialogState(() => objetivo = 'Hipertrofia'),
-                      ),
+                    const SizedBox(height: 8),
+                    _ObjetivoChip(
+                      label: 'Hipertrofia',
+                      icon: Icons.show_chart_rounded,
+                      selected: objetivo == 'Hipertrofia',
+                      onTap: () =>
+                          setDialogState(() => objetivo = 'Hipertrofia'),
                     ),
                   ],
                 ),
@@ -631,7 +625,7 @@ class _RutinaCardState extends State<_RutinaCard>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${(e['rutina'] as List?)?.length ?? 0} ejercicios',
+                      '${(e['ejercicios'] as List?)?.length ?? 0} ejercicios',
                       style: GoogleFonts.outfit(
                         fontSize: 12,
                         color: _kMuted,
@@ -890,34 +884,111 @@ class _ObjetivoChip extends StatelessWidget {
     required this.onTap,
   });
 
+  String get _desc => switch (label) {
+        'Fuerza' => 'Potencia, carga máxima y fuerza funcional',
+        'Resistencia' => 'Capacidad cardiovascular y aguante',
+        _ => 'Volumen muscular y definición corporal',
+      };
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
           color: selected ? _kAccent : Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? _kAccent : const Color(0xFFE5E7EB),
+            width: selected ? 1.5 : 1,
           ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: _kAccent.withOpacity(0.22),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : [],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
           children: [
-            Icon(icon,
-                size: 22, color: selected ? Colors.white : _kMuted),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : _kInk,
+            // Icon container
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: selected
+                    ? Colors.white.withOpacity(0.18)
+                    : _kAccent.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(11),
               ),
+              child: Icon(
+                icon,
+                size: 21,
+                color: selected ? Colors.white : _kAccent,
+              ),
+            ),
+
+            const SizedBox(width: 13),
+
+            // Text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: selected ? Colors.white : _kInk,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    _desc,
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      color: selected
+                          ? Colors.white.withOpacity(0.75)
+                          : _kMuted,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Check indicator
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: selected
+                  ? const Icon(
+                      Icons.check_circle_rounded,
+                      key: ValueKey(true),
+                      color: Colors.white,
+                      size: 20,
+                    )
+                  : Container(
+                      key: const ValueKey(false),
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFDDDDDD),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
             ),
           ],
         ),

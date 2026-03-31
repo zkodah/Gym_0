@@ -5,17 +5,17 @@ import '../screen/inicio.dart';
 
 class AuthService {
   static Future<void> handleLogin(BuildContext context, User user) async {
-    final usersRef = FirebaseFirestore.instance.collection('users');
-    final userDoc = await usersRef.doc(user.uid).get();
+    final usuariosRef = FirebaseFirestore.instance.collection('usuarios');
+    final userDoc = await usuariosRef.doc(user.uid).get();
     if (!userDoc.exists) {
-      await usersRef.doc(user.uid).set({
+      await usuariosRef.doc(user.uid).set({
         'email': user.email,
         'displayName': user.displayName,
         'photoURL': user.photoURL,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
-    // Navegar a la pantalla de inicio
+    if (!context.mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const InicioScreen()),

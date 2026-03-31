@@ -23,8 +23,22 @@ type UsuarioDB struct {
 // Rutinas es un mapa dinámico: objetivo → rangoEdad → rangoPeso → periodo → []Dia
 type Rutinas map[string]map[string]map[string]map[string][]Dia
 
+type Ejercicio struct {
+	Nombre              string   `json:"nombre"`
+	Series              int      `json:"series"`
+	Reps                string   `json:"reps"`
+	Descanso            string   `json:"descanso"`
+	MusculosPrincipales []string `json:"musculos_principales"`
+	MusculosSecundarios []string `json:"musculos_secundarios"`
+	Tip                 string   `json:"tip,omitempty"`
+}
+
 type Dia struct {
-	Dia    string   `json:"dia"`
-	Titulo string   `json:"titulo"`
-	Rutina []string `json:"rutina"`
+	Dia              string      `json:"dia"`
+	Titulo           string      `json:"titulo"`
+	DuracionEstimada string      `json:"duracion_estimada,omitempty"`
+	ObjetivoDia      string      `json:"objetivo_dia,omitempty"`
+	Calentamiento    []string    `json:"calentamiento,omitempty"`
+	Ejercicios       []Ejercicio `json:"ejercicios"`
+	VueltaCalma      []string    `json:"vuelta_a_la_calma,omitempty"`
 }

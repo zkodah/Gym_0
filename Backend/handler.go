@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -16,12 +15,29 @@ import (
 type app struct {
 	authClient      *auth.Client
 	firestoreClient *firestore.Client
+	rutinas         Rutinas
 }
 
 var objetivosValidos = map[string]string{
 	"hipertrofia": "Hipertrofia",
 	"resistencia": "Resistencia",
 	"fuerza":      "Fuerza",
+}
+
+func validarUsuarioInput(input UsuarioInput) error {
+	if strings.TrimSpace(input.Alias) == "" || len(input.Alias) > 50 {
+		return fmt.Errorf("alias debe tener entre 1 y 50 caracteres")
+	}
+	if input.Edad < 14 || input.Edad > 100 {
+		return fmt.Errorf("edad debe estar entre 14 y 100")
+	}
+	if input.Altura < 0.9 || input.Altura > 2.5 {
+		return fmt.Errorf("altura debe estar entre 0.9 y 2.5 metros")
+	}
+	if input.Peso < 20.0 || input.Peso > 300.0 {
+		return fmt.Errorf("peso debe estar entre 20 y 300 kg")
+	}
+	return nil
 }
 
 // POST /usuario — upsert en Firestore usando UID del context
@@ -33,10 +49,15 @@ func (a *app) guardarUsuario(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	if err := validarUsuarioInput(input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Normalizar objetivo a Title Case
 	normalizado, ok := objetivosValidos[strings.ToLower(input.Objetivo)]
 	if !ok {
-		http.Error(w, fmt.Sprintf("Objetivo inválido: %q. Válidos: Hipertrofia, Resistencia, Fuerza", input.Objetivo), http.StatusBadRequest)
+		http.Error(w, "Objetivo inválido. Válidos: Hipertrofia, Resistencia, Fuerza", http.StatusBadRequest)
 		return
 	}
 	input.Objetivo = normalizado
@@ -72,76 +93,36 @@ func (a *app) obtenerRutina(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rutinas, err := cargarRutinas()
-	if err != nil {
-		log.Printf("Error cargando rutinas: %v", err)
-		http.Error(w, "Error cargando rutinas", http.StatusInternalServerError)
-		return
-	}
-
-	// Calcular meses desde fechaRegistro (igual que el frontend)
+	// Calcular meses desde fechaRegistro
 	meses := calcularMeses(u.FechaRegistro)
 
-	// Override con ?meses=N si se proporciona (útil para testing)
-	if qm := r.URL.Query().Get("meses"); qm != "" {
-		var m int
-		if _, err := fmt.Sscanf(qm, "%d", &m); err == nil {
-			meses = m
-		}
-	}
-
-	// Navegar el mapa de rutinas
-	porObjetivo, ok := rutinas[u.Objetivo]
+	// Navegar el mapa de rutinas usando la caché cargada al inicio
+	porObjetivo, ok := a.rutinas[u.Objetivo]
 	if !ok {
-		http.Error(w, fmt.Sprintf("Objetivo %q no encontrado en rutinas", u.Objetivo), http.StatusNotFound)
+		http.Error(w, "Perfil de rutina no encontrado", http.StatusNotFound)
 		return
 	}
 	rangoEdad := seleccionarRangoEdad(u.Edad)
 	porEdad, ok := porObjetivo[rangoEdad]
 	if !ok {
-		http.Error(w, fmt.Sprintf("Rango de edad %q no encontrado", rangoEdad), http.StatusNotFound)
+		http.Error(w, "Perfil de rutina no encontrado", http.StatusNotFound)
 		return
 	}
 	rangoPeso := seleccionarRangoPeso(u.Peso)
 	porPeso, ok := porEdad[rangoPeso]
 	if !ok {
-		http.Error(w, fmt.Sprintf("Rango de peso %q no encontrado", rangoPeso), http.StatusNotFound)
+		http.Error(w, "Perfil de rutina no encontrado", http.StatusNotFound)
 		return
 	}
 	periodo := seleccionarPeriodo(meses)
 	dias, ok := porPeso[periodo]
 	if !ok {
-		http.Error(w, fmt.Sprintf("Período %q no encontrado", periodo), http.StatusNotFound)
+		http.Error(w, "Perfil de rutina no encontrado", http.StatusNotFound)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(dias)
-}
-
-// GET /rutinas — devuelve el JSON completo (debug, sin auth)
-func listarRutinas(w http.ResponseWriter, r *http.Request) {
-	rutinas, err := cargarRutinas()
-	if err != nil {
-		log.Printf("Error al cargar rutinas: %v", err)
-		http.Error(w, "No se pudo cargar rutinas.json", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(rutinas)
-}
-
-func cargarRutinas() (Rutinas, error) {
-	file, err := os.Open("data/rutinas.json")
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	var rutinas Rutinas
-	if err := json.NewDecoder(file).Decode(&rutinas); err != nil {
-		return nil, err
-	}
-	return rutinas, nil
 }
 
 // calcularMeses calcula cuántos meses pasaron desde fechaRegistro (formato ISO8601)

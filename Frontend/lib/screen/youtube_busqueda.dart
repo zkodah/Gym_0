@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_application_1/services/api_youtube.dart';
 import 'package:flutter_application_1/screen/videos.dart';
+import 'package:flutter_application_1/widget/navbar.dart';
 
 // ── Paleta centralizada ───────────────────────────────────────────────────────
 const _kAccent = Color(0xFFFF6D00);
@@ -98,6 +99,12 @@ class _YoutubeSearchScreenState extends State<YoutubeSearchScreen>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _kInk),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: Text(
           'Buscar ejercicios',
           style: GoogleFonts.outfit(
@@ -127,6 +134,7 @@ class _YoutubeSearchScreenState extends State<YoutubeSearchScreen>
           Expanded(child: _buildBody()),
         ],
       ),
+      bottomNavigationBar: const GymNavbar(currentIndex: 0),
     );
   }
 

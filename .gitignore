@@ -2,6 +2,10 @@
 Backend/.env
 Backend/serviceAccount.json
 Backend/*.exe
+Backend/test-build
+
+# ── Claude Code ───────────────────────────────────────────────────────────────
+.claude/
 
 # ── Frontend Flutter ─────────────────────────────────────────────────────────
 Frontend/.env

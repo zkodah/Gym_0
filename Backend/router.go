@@ -20,13 +20,13 @@ func habilitarCORS(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func registrarRutas(a *app, authClient *auth.Client) {
-	// Health check — sin auth
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	// Health check — sin auth, 20 req/min
+	http.HandleFunc("/", middlewareHeaders(limitarPorIP(20, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("API de AppGym corriendo"))
-	})
+	})))
 
-	// /usuario — con auth (GET y POST)
-	http.HandleFunc("/usuario", habilitarCORS(middlewareAuth(authClient, func(w http.ResponseWriter, r *http.Request) {
+	// /usuario — con auth, 60 req/min
+	http.HandleFunc("/usuario", habilitarCORS(middlewareHeaders(limitarPorIP(60, middlewareAuth(authClient, func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			a.obtenerUsuario(w, r)
@@ -35,11 +35,8 @@ func registrarRutas(a *app, authClient *auth.Client) {
 		default:
 			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
 		}
-	})))
+	})))))
 
-	// /rutina — con auth
-	http.HandleFunc("/rutina", habilitarCORS(middlewareAuth(authClient, a.obtenerRutina)))
-
-	// /rutinas — sin auth (debug)
-	http.HandleFunc("/rutinas", habilitarCORS(listarRutinas))
+	// /rutina — con auth, 60 req/min
+	http.HandleFunc("/rutina", habilitarCORS(middlewareHeaders(limitarPorIP(60, middlewareAuth(authClient, a.obtenerRutina)))))
 }
